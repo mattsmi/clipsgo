@@ -463,8 +463,12 @@ The build requires the CLIPS source code to be available, and to be built into a
 ```bash
 $ make
 ```
+```bash
+$ sudo make install-clips
+```
 
-There are also targets for `test` and `coverage` to run the test suite.
+
+There are also targets for `test` and `coverage` to run the test suite (i.e. `make test` and `make coverage`).
 
 Once CLIPS is built and available, subsequent builds can be done with a simple `go build`.
 

@@ -35,7 +35,7 @@ endif
 clips: clips_source/libclips.so
 
 clipsgo: clips
-	$(GO) build -o clipsgo ./cmd/clipsgo
+	$(GO) build -ldflags '-r $(SHARED_LIBRARY_DIR)' -o clipsgo ./cmd/clipsgo
 
 test: clips
 	GODEBUG=cgocheck=2 $(GO) test -coverprofile=cover.out ./pkg/...
