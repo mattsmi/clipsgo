@@ -470,6 +470,12 @@ $ sudo make install-clips
 
 There are also targets for `test` and `coverage` to run the test suite (i.e. `make test` and `make coverage`).
 
+The `make` will result in an executable that creates a CLIPS shell much like the CLIPS software itself. 
+
+To build a Go project that calls or uses clipsgo, you will need to use a command such as the following: 
+`go build -ldflags "-r /usr/local/lib" .` . Note the location for the shared libraries is that used in the *make* file. 
+Change it as needed.
+
 Once CLIPS is built and available, subsequent builds can be done with a simple `go build`.
 
 ## Reference documentation
