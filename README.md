@@ -253,20 +253,32 @@ would likely lead to errors.)
 
 ```go
 import (
-    "github.com/keysight/clipsgo/pkg/clips"
+    "fmt"
+
+    "testing"
+    "github.com/mattsmi/clipsgo/pkg/clips"
+    "github.com/stretchr/testify/assert"
 )
 
-env := clips.CreateEnvironment()
-defer env.Delete()
+func main() {
 
-fact, err := env.AssertString(`(foo a b c)`)
-defer fact.Drop()
+    env := clips.CreateEnvironment()
+    defer env.Delete()
 
-var strslice []string
-err = fact.Extract(&strslice)
-assert.Equal(t, strslice, []string {
-    "a", "b", "c",
-})
+    fact, err := env.AssertString(`(foo a b c)`)
+    defer fact.Drop()
+
+    t := &testing.T{}
+    var strslice []string
+    err = fact.Extract(&strslice)
+    if err != nil {
+        fmt.Println("Error in extracting info from CLIPS fact.")
+    }
+    assert.Equal(t, strslice, []string {
+        "a", "b", "c",
+    })
+    fmt.Println(strslice)
+}
 ```
 
 #### Template Facts
@@ -469,7 +481,8 @@ to use them.
 2. Change directory into repository.
     1. If cloned, `cd clipsgo`.
     2. If unzipped, `cd clipsgo-master`.
-3. ```bash
+3. Execute the following commands build the CLIPS shared library and then to build clipsgo.
+```bash
 make clips_all
 sudo make install-clips
 make just_clipsgo
@@ -480,9 +493,18 @@ There are also targets for `test` and `coverage` to run the test suite (i.e. `ma
 The `make` will result in an executable that creates a CLIPS shell much like the CLIPS software itself. 
 
 To build a Go project that calls or uses clipsgo, you will need to use a command such as the following: 
-`go build -ldflags "-r /usr/local/lib" .` . Note the location for the shared libraries is that used in the *make* file. 
-Change it as needed.
+`go build -ldflags "-r /usr/local/lib" .` . Note the location for the shared libraries is that used in the *make* file. Change it as needed.
 
+For example, as you have a module resident in a directory called "go_clips_test", the following 
+will set the environment and then build (i.e. compile) the module to an executable, which
+will be called "go_clips_test".
+```bash
+go mod init go_clips_test
+go mod tidy
+go get go_clips_test
+go build -ldflags "-r /usr/local/lib" .
+```
+See the second example of code under Ordered Facts, it is a complete program, not just a snippet.
 
 
 ## Reference documentation
