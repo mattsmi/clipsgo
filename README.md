@@ -2,6 +2,8 @@
 
 A Go wrapper for CLIPS, inspired by [clipspy](https://clipspy.readthedocs.io/en/latest/) and implemented using [cgo](https://golang.org/cmd/cgo/).
 
+Instructions and examples updated from those found in the original written by Kris Raney (*Keysight*).
+The original repository can be found [here](https://github.com/Keysight/clipsgo).
 ## Design
 
 CLIPSgo attempts to follow closely the model defined by clipspy. Anyone familiar with clipspy should find clipsgo fairly straightforward to understand. That said there are a few notable areas of differences.
