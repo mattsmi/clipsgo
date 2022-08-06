@@ -1,4 +1,4 @@
-module github.com/mattsmi/clipsgo
+module github.com/mattsmi/clipsgo/v0.2
 
 go 1.14
 
