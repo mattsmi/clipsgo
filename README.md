@@ -1,9 +1,10 @@
-# CLIPSgo Golang Bindings
+# CLIPSgo Bindings for CLIPS in the Go Language
 
 A Go wrapper for CLIPS, inspired by [clipspy](https://clipspy.readthedocs.io/en/latest/) and implemented using [cgo](https://golang.org/cmd/cgo/).
 
-Instructions and examples updated from those found in the original written by Kris Raney (*Keysight*).
+Instructions and examples updated from those found in the original written by Kris Raney (_Keysight_).
 The original repository can be found [here](https://github.com/Keysight/clipsgo).
+
 ## Design
 
 CLIPSgo attempts to follow closely the model defined by clipspy. Anyone familiar with clipspy should find clipsgo fairly straightforward to understand. That said there are a few notable areas of differences.
@@ -12,6 +13,7 @@ CLIPSgo attempts to follow closely the model defined by clipspy. Anyone familiar
 - clipsgo adds a `SendCommand` call inspired by [pyclips](http://pyclips.sourceforge.net/web/?q=node/13), enabling an interactive shell.
 - clipsgo includes a `Shell()` API call based on this that opens an interactive shell, and includes readline-style history and syntax highlighting
 - clipsgo builds into an executable that simply acts as an interactive CLIPS shell
+- clipsgo may also form part of your own Go language project that uses the CLIPS rules engine.
 
 ## Interactive use
 
@@ -51,11 +53,11 @@ For detailed information about CLIPS see the [CLIPS
 documentation](http://www.clipsrules.net/Documentation.html)
 
 While most of the CLIPS documentation starts from _facts_ and _templates_,
-given that you'll be programming Go I recommend that you build your rules and
+you may also build your rules and
 "facts" based on classes and instances, instead of templates and facts.
 Everything you can do with facts, you can do with instances, but the reverse
-is not true. Any Go programmer is likely to be familiar with the object
-oriented concepts of [CLIPS Object Oriented Language
+is not true. Most programmers are likely to be familiar with the
+object-oriented concepts of [CLIPS Object Oriented Language
 (COOL)](https://www.csie.ntu.edu.tw/~sylee/courses/clips/bpg/node9.html) and
 in fact may find them more familiar and comfortable than the older, more
 procedural base language.
@@ -65,32 +67,42 @@ procedural base language.
 Instances are instantiations of specific classes. They store values by name, similar to Go maps. They also support inheritance and instance methods using message sending.
 
 ```go
+package main
+
 import (
-    "github.com/keysight/clipsgo/pkg/clips"
+		"testing"
+        "github.com/mattsmi/clipsgo/pkg/clips"
+		"github.com/stretchr/testify/assert"
 )
 
-env := clips.CreateEnvironment()
-defer env.Delete()
+func main() {
 
-err := env.Build(`(defclass Foo (is-a USER)
-        (slot bar
-            (type INTEGER))
-        (multislot baz)
-)`)
-assert.NilError(t, err)
-err := env.Build(`(defmessage-handler Foo handler ()
-        (printout t "bar=" ?self:bar crlf)
-)`)
-assert.NilError(t, err)
+	t := &testing.T{}
 
-inst, err := env.MakeInstance(`(of Foo (bar 12))`)
-assert.NilError(t, err)
+	env := clips.CreateEnvironment()
+	defer env.Delete()
 
-ret, err := inst.Slot("bar")
-assert.NilError(t, err)
-assert.Equal(t, ret, int64(12))
+	err := env.Build(`(defclass Foo (is-a USER)
+	        (slot bar
+	            (type INTEGER))
+	        (multislot baz)
+	)`)
+	assert.Nil(t, err)
+	err = env.Build(`(defmessage-handler Foo handler ()
+	        (printout t "bar=" ?self:bar crlf)
+	)`)
+	assert.Nil(t, err)
 
-ret := inst.Send("handler", "")
+	inst, err := env.MakeInstance(`(of Foo (bar 12))`)
+	assert.Nil(t, err)
+
+	ret, err := inst.Slot("bar")
+	assert.Nil(t, err)
+	assert.Equal(t, ret, int64(12))
+
+	ret = inst.Send("handler", "")
+}
+
 ```
 
 #### Insert
@@ -107,25 +119,41 @@ structs, these will become slots of type INSTANCE-NAME, and the struct
 that is referred will also be inserted.
 
 ```go
-type ChildClass struct {
+package main
+
+import (
+		"testing"
+    "github.com/mattsmi/clipsgo/pkg/clips"
+		"github.com/stretchr/testify/assert"
+)
+
+func main() {
+
+	t := &testing.T{}
+
+	env := clips.CreateEnvironment()
+	defer env.Delete()
+
+	type ChildClass struct {
     Intval   *int
     Floatval *float64
-}
-type ParentClass struct {
-    Str   string
-    Child ChildClass
-}
-var template *ParentClass
+	}
+	type ParentClass struct {
+	    Str   string
+	    Child ChildClass
+	}
+	var template *ParentClass
 
-cls, err := env.InsertClass(template)
-assert.NilError(t, err)
-assert.Equal(t, cls.String(), `(defclass MAIN::ParentClass
-   (is-a USER)
-   (slot Str
-      (type STRING))
-   (slot Child
-      (type INSTANCE-NAME)
-      (allowed-classes ChildClass)))`)
+	cls, err := env.InsertClass(template)
+	assert.Nil(t, err)
+	assert.Equal(t, cls.String(), `(defclass MAIN::ParentClass
+	   (is-a USER)
+	   (slot Str
+	      (type STRING))
+	   (slot Child
+	      (type INSTANCE-NAME)
+	      (allowed-classes ChildClass)))`)
+}
 ```
 
 When an instance is inserted, a class for that data type will implicitly be
@@ -474,16 +502,18 @@ for _, tmpl := range templates {
 
 The build requires the CLIPS source code to be available, and to be built into a shared library. The provided Makefile makes this simple. However, because clipsgo requires the CLIPS source code and shared library to be in place to run, we must build these before using clipsgo in an Go code.
 
-The following instructions will build a Go executable that provides a CLIPS shell. Along the way, 
-it will handily place the CLIPS source and shared library (.so) in the places necessary for clipsgo 
+The following instructions will build a Go executable that provides a CLIPS shell. Along the way,
+it will handily place the CLIPS source and shared library (.so) in the places necessary for clipsgo
 to use them.
+
 1. Copy this repository to disk through either of the following methods.
-    1. clone this repository to a place or 
-    2. disk or click on the green Code button and choose to copy the ZIP to disk. Unzip it.
+   1. clone this repository to a place or
+   2. disk or click on the green Code button and choose to copy the ZIP to disk. Unzip it.
 2. Change directory into repository.
-    1. If cloned, `cd clipsgo`.
-    2. If unzipped, `cd clipsgo-master`.
+   1. If cloned, `cd clipsgo`.
+   2. If unzipped, `cd clipsgo-master`.
 3. Execute the following commands build the CLIPS shared library and then to build clipsgo.
+
 ```bash
 make clips_all
 sudo make install-clips
@@ -492,22 +522,23 @@ make just_clipsgo
 
 There are also targets for `test` and `coverage` to run the test suite (i.e. `make test` and `make coverage`).
 
-The `make` will result in an executable that creates a CLIPS shell much like the CLIPS software itself. 
+The `make` will result in an executable that creates a CLIPS shell much like the CLIPS software itself.
 
-To build a Go project that calls or uses clipsgo, you will need to use a command such as the following: 
-`go build -ldflags "-r /usr/local/lib" .` . Note the location for the shared libraries is that used in the *make* file. Change it as needed.
+To build a Go project that calls or uses clipsgo, you will need to use a command such as the following:
+`go build -ldflags "-r /usr/local/lib" .` . Note the location for the shared libraries is that used in the _make_ file. Change it as needed.
 
-For example, as you have a module resident in a directory called "go_clips_test", the following 
+For example, as you have a module resident in a directory called "go_clips_test", the following
 will set the environment and then build (i.e. compile) the module to an executable, which
 will be called "go_clips_test".
+
 ```bash
 go mod init go_clips_test
 go mod tidy
 go get go_clips_test
 go build -ldflags "-r /usr/local/lib" .
 ```
-See the second example of code under Ordered Facts, it is a complete program, not just a snippet.
 
+See the second example of code under Ordered Facts, it is a complete program, not just a snippet.
 
 ## Reference documentation
 
