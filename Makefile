@@ -34,7 +34,12 @@ endif
 
 clips: clips_source/libclips.so
 
+clips_all: clips_source clips_source/libclips.so clips
+
 clipsgo: clips
+	$(GO) build -ldflags '-r $(SHARED_LIBRARY_DIR)' -o clipsgo ./cmd/clipsgo
+
+just_clipsgo: 
 	$(GO) build -ldflags '-r $(SHARED_LIBRARY_DIR)' -o clipsgo ./cmd/clipsgo
 
 test: clips

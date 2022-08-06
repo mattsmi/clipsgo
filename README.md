@@ -458,15 +458,22 @@ for _, tmpl := range templates {
 
 ### Building From Sources
 
-The build requires the CLIPS source code to be available, and to be built into a shared library. The provided Makefile makes this simple.
+The build requires the CLIPS source code to be available, and to be built into a shared library. The provided Makefile makes this simple. However, because clipsgo requires the CLIPS source code and shared library to be in place to run, we must build these before using clipsgo in an Go code.
 
-```bash
-$ make
+The following instructions will build a Go executable that provides a CLIPS shell. Along the way, 
+it will handily place the CLIPS source and shared library (.so) in the places necessary for clipsgo 
+to use them.
+1. Copy this repository to disk through either of the following methods.
+    1. clone this repository to a place or 
+    2. disk or click on the green Code button and choose to copy the ZIP to disk. Unzip it.
+2. Change directory into repository.
+    1. If cloned, `cd clipsgo`.
+    2. If unzipped, `cd clipsgo-master`.
+3. ```bash
+make clips_all
+sudo make install-clips
+make just_clipsgo
 ```
-```bash
-$ sudo make install-clips
-```
-
 
 There are also targets for `test` and `coverage` to run the test suite (i.e. `make test` and `make coverage`).
 
@@ -476,7 +483,7 @@ To build a Go project that calls or uses clipsgo, you will need to use a command
 `go build -ldflags "-r /usr/local/lib" .` . Note the location for the shared libraries is that used in the *make* file. 
 Change it as needed.
 
-Once CLIPS is built and available, subsequent builds can be done with a simple `go build`.
+
 
 ## Reference documentation
 
