@@ -2,7 +2,9 @@
 
 A Go wrapper for CLIPS, inspired by [clipspy](https://clipspy.readthedocs.io/en/latest/) and implemented using [cgo](https://golang.org/cmd/cgo/).
 
-Instructions and examples updated from those found in the original package written by Kris Raney (_Keysight_).
+Instructions and examples updated from those found in the original package written by Kris Raney (_Keysight_). All examples are no longer code-snippets but complete Go programs, which you
+can run and test at home.
+
 The original repository can be found [here](https://github.com/Keysight/clipsgo).
 
 ## Design
@@ -21,7 +23,7 @@ You may run clipsgo directly in order to use an interactive shell.
 
 ![shell](assets/interactive.png)
 
-Also, in your clipsgo-based programs, you may set up an environment that includes Go-based functions and / or is preloaded with data, then open an interactive session within that environment.
+Also, in your clipsgo-based programs, you may set up an environment that includes Go-based functions and/or is preloaded with data, then open an interactive session within that environment.
 
 ```go
 func main() {
@@ -70,9 +72,10 @@ Instances are instantiations of specific classes. They store values by name, sim
 package main
 
 import (
-		"testing"
-        "github.com/mattsmi/clipsgo/pkg/clips"
-		"github.com/stretchr/testify/assert"
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
 )
 
 func main() {
@@ -87,27 +90,28 @@ func main() {
 	            (type INTEGER))
 	        (multislot baz)
 	)`)
-	assert.Nil(t, err)
+	assert.NilError(t, err)
 	err = env.Build(`(defmessage-handler Foo handler ()
 	        (printout t "bar=" ?self:bar crlf)
 	)`)
-	assert.Nil(t, err)
+	assert.NilError(t, err)
 
 	inst, err := env.MakeInstance(`(of Foo (bar 12))`)
-	assert.Nil(t, err)
+	assert.NilError(t, err)
 
 	ret, err := inst.Slot("bar")
-	assert.Nil(t, err)
+	assert.NilError(t, err)
 	assert.Equal(t, ret, int64(12))
 
 	ret = inst.Send("handler", "")
 }
 
+
 ```
 
 #### Insert
 
-A user-defined struct may be "inserted" as a class and / or instance in
+A user-defined struct may be "inserted" as a class and/or instance in
 CLIPS. The term "Insert" is taken from DROOLS, although unlike DROOLS
 no long-term link between the user struct and the CLIPS instance
 is retained. The data is simply copied in.
@@ -122,9 +126,11 @@ that is referred will also be inserted.
 package main
 
 import (
-		"testing"
-    "github.com/mattsmi/clipsgo/pkg/clips"
-		"github.com/stretchr/testify/assert"
+	"fmt"
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
 )
 
 func main() {
@@ -135,25 +141,30 @@ func main() {
 	defer env.Delete()
 
 	type ChildClass struct {
-    Intval   *int
-    Floatval *float64
+		Intval   *int
+		Floatval *float64
 	}
 	type ParentClass struct {
-	    Str   string
-	    Child ChildClass
+		Str   string
+		Child ChildClass
 	}
 	var template *ParentClass
 
 	cls, err := env.InsertClass(template)
-	assert.Nil(t, err)
-	assert.Equal(t, cls.String(), `(defclass MAIN::ParentClass
-	   (is-a USER)
-	   (slot Str
-	      (type STRING))
-	   (slot Child
-	      (type INSTANCE-NAME)
-	      (allowed-classes ChildClass)))`)
+	assert.NilError(t, err)
+
+	/* output should appear as follows.
+	   (defclass MAIN::ParentClass
+			(is-a USER)
+			(slot Str
+			   (type STRING))
+			(slot Child
+			   (type INSTANCE-NAME)
+			   (allowed-classes ChildClass)))
+	*/
+	fmt.Println(cls.String())
 }
+
 ```
 
 When an instance is inserted, a class for that data type will implicitly be
@@ -162,31 +173,51 @@ it will be used as-is (and may not match the fields of the given data,
 causing an error, if it was created by some other means.)
 
 ```go
-type ChildClass struct {
-    Intval   *int
-    Floatval *float64
-}
-type ParentClass struct {
-    Str   string
-    Child ChildClass
-}
-intval := 99
-floatval := 107.0
-template := ParentClass{
-    Str: "with actual value",
-    Child: ChildClass{
-        Intval:   &intval,
-        Floatval: &floatval,
-    },
+package main
+
+import (
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
+)
+
+func main() {
+
+	t := &testing.T{}
+
+	env := clips.CreateEnvironment()
+	defer env.Delete()
+
+	type ChildClass struct {
+		Intval   *int
+		Floatval *float64
+	}
+	type ParentClass struct {
+		Str   string
+		Child ChildClass
+	}
+	intval := 99
+	floatval := 107.0
+	template := ParentClass{
+		Str: "with actual value",
+		Child: ChildClass{
+			Intval:   &intval,
+			Floatval: &floatval,
+		},
+	}
+
+	inst, err := env.Insert("", template)
+	assert.NilError(t, err)
+	assert.Equal(t, inst.String(), `[gen1] of ParentClass (Str "with actual value") (Child [gen2])`)
+
+	subinst, err := env.FindInstance("gen2", "")
+	assert.NilError(t, err)
+	assert.Equal(t, subinst.String(), `[gen2] of ChildClass (Intval 99) (Floatval 107.0)`)
 }
 
-inst, err := env.Insert("", template)
-assert.NilError(t, err)
-assert.Equal(t, inst.String(), `[gen1] of ParentClass (Str "with actual value") (Child [gen2])`)
 
-subinst, err := env.FindInstance("gen2", "")
-assert.NilError(t, err)
-assert.Equal(t, subinst.String(), `[gen2] of ChildClass (Intval 99) (Floatval 107.0)`)
+
 ```
 
 #### Extract
@@ -198,48 +229,67 @@ object which will be filled in by clipsgo.
 Matching the name of the struct field to the slot name is determined by the
 following rules:
 
-- If the struct field has a "clips" tag, that tag is used as the slot nam.
+- If the struct field has a "clips" tag, that tag is used as the slot name.
 - Otherwise, if the struct has a "json" tag, that tag is used.
-- Otherwise the field name of the struct is used
+- Otherwise the field name of the struct is used.
 
 Note that instances are extracted recursively; if a slot in the instance is
 an INSTANCE-ADDRESS or INSTANCE-NAME, the referred instance will also be
 extracted as structured data
 
 ```go
-err := env.Build(`(defclass Foo (is-a USER)
+package main
+
+import (
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
+)
+
+func main() {
+
+	t := &testing.T{}
+
+	env := clips.CreateEnvironment()
+	defer env.Delete()
+
+	err := env.Build(`(defclass Foo (is-a USER)
     (slot Int (type INTEGER))
     (slot Float (type FLOAT))
     (slot Sym (type SYMBOL))
     (multislot MS))
 `)
-assert.NilError(t, err)
+	assert.NilError(t, err)
 
-inst, err := env.MakeInstance(`(of Foo (Int 12) (Float 28.0) (Sym bar) (MS a b c))`)
-assert.NilError(t, err)
+	inst, err := env.MakeInstance(`(of Foo (Int 12) (Float 28.0) (Sym bar) (MS a b c))`)
+	assert.NilError(t, err)
 
-type Foo struct {
-    IntVal    int     `json:"Int"`
-    FloatVal  float64 `clips:"Float"`
-    Sym       Symbol
-    MultiSlot *[]interface{} `json:"MS,omitempty"`
+	type Foo struct {
+		IntVal    int     `json:"Int"`
+		FloatVal  float64 `clips:"Float"`
+		Sym       clips.Symbol
+		MultiSlot *[]interface{} `json:"MS,omitempty"`
+	}
+
+	var retval Foo
+	err = inst.Extract(&retval)
+
+	output := Foo{
+		IntVal:   12,
+		FloatVal: 28.0,
+		Sym:      clips.Symbol("bar"),
+		MultiSlot: &[]interface{}{
+			clips.Symbol("a"),
+			clips.Symbol("b"),
+			clips.Symbol("c"),
+		},
+	}
+
+	assert.DeepEqual(t, retval, output)
 }
 
-var retval Foo
-err = inst.Extract(&retval)
 
-output := Foo{
-    IntVal:   12,
-    FloatVal: 28.0,
-    Sym:      Symbol("bar"),
-    MultiSlot: &[]interface{}{
-        Symbol("a"),
-        Symbol("b"),
-        Symbol("c"),
-    },
-}
-
-assert.DeepEqual(t, retval, output)
 ```
 
 ### Facts
@@ -251,31 +301,46 @@ A _fact_ is a list of atomic values that are either referenced positionally, for
 Ordered Facts represent information as a list of elements. There is no explicit template for an ordered fact, but they do have an implied template. A reference to the implied template of an ordered fact can be obtained, and can be used to programmatically assert ordered facts.
 
 ```go
+package main
+
 import (
-    "github.com/keysight/clipsgo/pkg/clips"
+	"fmt"
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
 )
 
-env := clips.CreateEnvironment()
-defer env.Delete()
+func main() {
 
-fact, err := env.AssertString(`(foo a b c)`)
-defer fact.Drop()
+	t := &testing.T{}
 
-tmpl := fact.Template()
-assert.Assert(t, tmpl.Implied())
-fact, err = tmpl.NewFact()
+	env := clips.CreateEnvironment()
+	defer env.Delete()
 
-ifact, ok := fact.(*ImpliedFact)
-assert.Assert(t, ok)
+	fact, err := env.AssertString(`(foo a b c)`)
+	if err != nil {
+		fmt.Println("Problem asserting fact in CLIPS.")
+	}
+	defer fact.Drop()
 
-ifact.Append("a")
-ifact.Extend([]interface{}{
-    Symbol("b"),
-    3,
-})
+	tmpl := fact.Template()
+	assert.Assert(t, tmpl.Implied())
+	fact, err = tmpl.NewFact()
 
-ifact.Set(2, "c")
-ifact.Assert()
+	ifact, ok := fact.(*clips.ImpliedFact)
+	assert.Assert(t, ok)
+
+	ifact.Append("a")
+	ifact.Extend([]interface{}{
+		clips.Symbol("b"),
+		3,
+	})
+
+	ifact.Set(2, "c")
+	ifact.Assert()
+}
+
 ```
 
 Similar to instances, an ordered fact may be extracted to a user-provided structure. Extracted ordered facts will translate to a slice of interface. The user may use a more specific slice, in which case the slice will be automatically converted (if possible - note that an unordered fact need not have all values of the same type, which
@@ -316,44 +381,94 @@ func main() {
 Unordered facts represent data similar to Go maps. They require a template to be defined, which provides a formal definition for what data is represented by the fact.
 
 ```go
+package main
+
 import (
-    "github.com/keysight/clipsgo/pkg/clips"
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
 )
 
-env := clips.CreateEnvironment()
-defer env.Delete()
+func main() {
 
-env.Build("(deftemplate foo (slot bar) (multislot baz))")
+	t := &testing.T{}
 
-tmpl, err := env.FindTemplate("foo")
-assert.NilError(t, err)
-fact, err := tmpl.NewFact()
-assert.NilError(t, err)
+	env := clips.CreateEnvironment()
+	defer env.Delete()
 
-tfact, ok := fact.(*TemplateFact)
-assert.Assert(t, ok)
+	env.Build("(deftemplate foo (slot bar) (multislot baz))")
 
-tfact.Set("bar", 4)
-tfact.Set("baz", []interface{}{
-    Symbol("b"),
-    3,
-})
-ifact.Assert()
+	tmpl, err := env.FindTemplate("foo")
+	assert.NilError(t, err)
+	fact, err := tmpl.NewFact()
+	assert.NilError(t, err)
+
+	tfact, ok := fact.(*clips.TemplateFact)
+	assert.Assert(t, ok)
+
+	tfact.Set("bar", 4)
+	tfact.Set("baz", []interface{}{
+		clips.Symbol("b"),
+		3,
+	})
+	tfact.Assert()
+}
+
 ```
 
 Template facts may be extracted to structs or to a map
 
 ```go
-var mapvar map[string]interface{}
-err = fact.Extract(&mapvar)
-assert.NilError(t, err)
-assert.DeepEqual(t, mapvar, map[string]interface{}{
-    "bar": int64(4),
-    "baz": []interface{} {
-        Symbol("b"),
-        3,
-    },
-})
+package main
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
+)
+
+func main() {
+
+	t := &testing.T{}
+
+	env := clips.CreateEnvironment()
+	defer env.Delete()
+
+	env.Build("(deftemplate foo (slot bar) (multislot baz))")
+
+	tmpl, err := env.FindTemplate("foo")
+	assert.NilError(t, err)
+	fact, err := tmpl.NewFact()
+	assert.NilError(t, err)
+
+	tfact, ok := fact.(*clips.TemplateFact)
+	assert.Assert(t, ok)
+
+	tfact.Set("bar", 4)
+	tfact.Set("baz", []interface{}{
+		clips.Symbol("b"),
+		3,
+	})
+	tfact.Assert()
+
+	/* now extract */
+	var mapvar map[string]interface{}
+	err = fact.Extract(&mapvar)
+	assert.NilError(t, err)
+	fmt.Println(mapvar)
+	/* the contents should look similar to
+	map[string]interface{}{
+		"bar": int64(4),
+		"baz": []interface{}{
+			clips.Symbol("b"),
+			3,
+		},
+	}
+	*/
+}
 
 ```
 
@@ -365,7 +480,7 @@ It is possible to evaluate CLIPS statements, retrieving their results in Go.
 
 ```go
 import (
-    "github.com/keysight/clipsgo/pkg/clips"
+    "github.com/mattsmi/clipsgo/pkg/clips"
 )
 
 env := clips.CreateEnvironment()
@@ -381,27 +496,45 @@ The return from Eval is interface{}, since it is not possible to know in advance
 For cases where the user is able to know an expected return type, an ExtractEval function is provided. This will marshall the returned data into an object provided by the user. Using ExtractEval can reduce the amount of boilerplate type checking required. Type conversions are applied as necessary. An error will be generated if a numeric type conversion results in loss of precision.
 
 ```go
-intval := 4
-err = env.ExtractEval(&intval, "12")
-assert.NilError(t, err)
-assert.Equal(t, intval, 12)
+package main
 
-sliceval := make([]string, 0)
-err = env.ExtractEval(sliceval, "(create$ a b c d e f)")
-assert.NilError(t, err)
-assert.DeepEqual(t, sliceval, []string{
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-})
+import (
+	"testing"
 
-var factval Fact
-ret, err := env.ExtractEval(&factval, "(bind ?ret (assert (foo a b c)))")
-assert.NilError(t, err)
-assert.Equal(t, factval.String(), "(foo a b c)")
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
+)
+
+func main() {
+
+	t := &testing.T{}
+
+	env := clips.CreateEnvironment()
+	defer env.Delete()
+
+	intval := 4
+	err := env.ExtractEval(&intval, "12")
+	assert.NilError(t, err)
+	assert.Equal(t, intval, 12)
+
+	sliceval := make([]string, 0)
+	err = env.ExtractEval(&sliceval, "(create$ a b c d e f)")
+	assert.NilError(t, err)
+	assert.DeepEqual(t, sliceval, []string{
+		"a",
+		"b",
+		"c",
+		"d",
+		"e",
+		"f",
+	})
+
+	var factval clips.Fact
+	err = env.ExtractEval(&factval, "(bind ?ret (assert (foo a b c)))")
+	assert.NilError(t, err)
+	assert.Equal(t, factval.String(), "(foo a b c)")
+}
+
 ```
 
 ### SendCommand
@@ -409,16 +542,27 @@ assert.Equal(t, factval.String(), "(foo a b c)")
 In order to overcome some of the limitations of the CLIPS `eval` command, clipsgo provides a higher-level function called `SendCommand` which accepts any arbitrary CLIPS command.
 
 ```go
+package main
+
 import (
-    "github.com/keysight/clipsgo/pkg/clips"
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
 )
 
-env := clips.CreateEnvironment()
-defer env.Delete()
+func main() {
 
-// try some stuff that Eval chokes on
-err := env.SendCommand("(assert (foo a b c))")
-assert.NilError(t, err)
+	t := &testing.T{}
+
+	env := clips.CreateEnvironment()
+	defer env.Delete()
+
+	// try some stuff that Eval chokes on
+	err := env.SendCommand("(assert (foo a b c))")
+	assert.NilError(t, err)
+}
+
 ```
 
 This avoids the need to know in advance which call to make. On the other hand, no return value is provided; `SendCommand` is primarily intended for more interactive evaluation of unpredictable input.
@@ -428,20 +572,31 @@ This avoids the need to know in advance which call to make. On the other hand, n
 CLIPS constructs must be defined in CLIPS language. Use the `Load()` or `Build()` functions to define them.
 
 ```go
+package main
+
 import (
-    "github.com/keysight/clipsgo/pkg/clips"
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
 )
 
-env := clips.CreateEnvironment()
-defer env.Delete()
+func main() {
 
-err := env.Build(`
+	t := &testing.T{}
+
+	env := clips.CreateEnvironment()
+	defer env.Delete()
+
+	err := env.Build(`
 (defrule my-rule
     (my-fact first-slot)
 =>
     (printout t "My Rule fired!" crlf)
 )`)
-assert.NilError(t, err)
+	assert.NilError(t, err)
+}
+
 ```
 
 ## Embedding Go
@@ -457,24 +612,35 @@ Any number of return values is supported. If the last return value of the funcit
 Variadic functions are also supported.
 
 ```go
+package main
+
 import (
-    "github.com/keysight/clipsgo/pkg/clips"
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
 )
 
-env := clips.CreateEnvironment()
-defer env.Delete()
+func main() {
 
-callback := func(foo int, bar float64,
-                multifield []interface{},
-                vals ...clips.Symbol) (bool, error)
-    return true, nil
+	t := &testing.T{}
+
+	env := clips.CreateEnvironment()
+	defer env.Delete()
+
+	callback := func(foo int, bar float64,
+		multifield []interface{},
+		vals ...clips.Symbol) (bool, error) {
+		return true, nil
+	}
+
+	err := env.DefineFunction("test-callback", callback)
+	assert.NilError(t, err)
+
+	_, err = env.Eval("(test-callback 1 17.0 (create$ a b c) a b c d e f)")
+	assert.NilError(t, err)
 }
 
-err := env.DefineFunction("test-callback", callback)
-assert.NilError(t, err)
-
-_, err = env.Eval("(test-callback 1 17.0 (create$ a b c) a b c d e f)")
-assert.NilError(t, err)
 ```
 
 ## Go Reference Objects Lifecycle
@@ -482,37 +648,45 @@ assert.NilError(t, err)
 All of the Go objects created to interact with the CLIPS environment are simple references to the CLIPS data structure. This means that interactions with the CLIPS shell can cause them to become invalid. In most cases, deleting or undefining an object makes any Go reference to it unusable.
 
 ```go
+package main
+
 import (
-    "github.com/keysight/clipsgo/pkg/clips"
+	"fmt"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
 )
 
-env := clips.CreateEnvironment()
-defer env.Delete()
+func main() {
 
-templates := env.Templates()
-env.Clear() // From here, all templates are gone so all references are unusable
+	env := clips.CreateEnvironment()
+	defer env.Delete()
 
-// this will cause an error
-for _, tmpl := range templates {
-    fmt.Printf("%v\n", tmpl)
+	templates := env.Templates()
+	env.Clear() // From here, all templates are gone so all references are unusable
+
+	// this will cause an error and/or print rubbish
+	for _, tmpl := range templates {
+		fmt.Printf("%v\n", tmpl)
+	}
 }
+
 ```
 
 ### Building From Sources
 
-The build requires the CLIPS source code to be available, and to be built into a shared library. The provided Makefile makes this simple. However, because clipsgo requires the CLIPS source code and shared library to be in place to run, we must build these before using clipsgo in an Go code.
+The build requires the CLIPS source code to be available, and to be built into a shared library. The  Makefile provided makes this simple. However, because clipsgo requires the CLIPS source code and shared library to be in place to run, we must build these before using clipsgo as part of any Go code.
 
 The following instructions will build a Go executable that provides a CLIPS shell. Along the way,
 it will handily place the CLIPS source and shared library (.so) in the places necessary for clipsgo
-to use them.
+to use them, when being called from Go code.
 
 1. Copy this repository to disk through either of the following methods.
-   1. clone this repository to a place or
-   2. disk or click on the green Code button and choose to copy the ZIP to disk. Unzip it.
+   1. clone this repository to some location on disk, or
+   2. click on the green Code button and choose to copy the ZIP to disk. Unzip it into a directory.
 2. Change directory into repository.
    1. If cloned, `cd clipsgo`.
    2. If unzipped, `cd clipsgo-master`.
-3. Execute the following commands build the CLIPS shared library and then to build clipsgo.
+3. Execute the following commands to build the CLIPS shared library and then to build clipsgo.
 
 ```bash
 make clips_all
@@ -520,14 +694,15 @@ sudo make install-clips
 make just_clipsgo
 ```
 
-There are also targets for `test` and `coverage` to run the test suite (i.e. `make test` and `make coverage`).
+There are also targets for `test` and `coverage` in the Makefile to run the test suite 
+(i.e. `make test` and `make coverage`).
 
 The `make` will result in an executable that creates a CLIPS shell much like the CLIPS software itself.
 
 To build a Go project that calls or uses clipsgo, you will need to use a command such as the following:
 `go build -ldflags "-r /usr/local/lib" .` . Note the location for the shared libraries is that used in the _make_ file. Change it as needed.
 
-For example, as you have a module resident in a directory called "go_clips_test", the following
+For example, assume you have a module resident in a directory called "go_clips_test", the following
 will set the environment and then build (i.e. compile) the module to an executable, which
 will be called "go_clips_test".
 
@@ -537,8 +712,6 @@ go mod tidy
 go get go_clips_test
 go build -ldflags "-r /usr/local/lib" .
 ```
-
-See the second example of code under Ordered Facts, it is a complete program, not just a snippet.
 
 ## Reference documentation
 
