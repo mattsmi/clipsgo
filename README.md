@@ -347,33 +347,46 @@ Similar to instances, an ordered fact may be extracted to a user-provided struct
 would likely lead to errors.)
 
 ```go
-import (
-    "fmt"
+package main
 
-    "testing"
-    "github.com/mattsmi/clipsgo/pkg/clips"
-    "github.com/stretchr/testify/assert"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/mattsmi/clipsgo/pkg/clips"
+	"gotest.tools/assert"
 )
 
 func main() {
 
-    env := clips.CreateEnvironment()
-    defer env.Delete()
+	t := &testing.T{}
 
-    fact, err := env.AssertString(`(foo a b c)`)
-    defer fact.Drop()
+	env := clips.CreateEnvironment()
+	defer env.Delete()
 
-    t := &testing.T{}
-    var strslice []string
-    err = fact.Extract(&strslice)
-    if err != nil {
-        fmt.Println("Error in extracting info from CLIPS fact.")
-    }
-    assert.Equal(t, strslice, []string {
-        "a", "b", "c",
-    })
-    fmt.Println(strslice)
+	fact, err := env.AssertString(`(foo a b c)`)
+	if err != nil {
+		fmt.Println("Problem asserting fact in CLIPS.")
+	}
+	defer fact.Drop()
+
+	tmpl := fact.Template()
+	assert.Assert(t, tmpl.Implied())
+	fact, err = tmpl.NewFact()
+
+	ifact, ok := fact.(*clips.ImpliedFact)
+	assert.Assert(t, ok)
+
+	ifact.Append("a")
+	ifact.Extend([]interface{}{
+		clips.Symbol("b"),
+		3,
+	})
+
+	ifact.Set(2, "c")
+	ifact.Assert()
 }
+
 ```
 
 #### Template Facts
